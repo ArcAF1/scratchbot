@@ -1,6 +1,8 @@
 # Municipal Fee Crawler
 
+
 This repository contains a Python-based crawler that extracts hourly rate information and billing models for municipal services. The crawler can read a list of municipal URLs, crawl HTML or PDF documents, and export the results to an Excel file.
+
 
 ## Installation
 
@@ -32,14 +34,17 @@ The resulting Excel file contains the scraped data for each municipality.
 
 The project uses the built-in `unittest` framework. Execute the test suite with:
 
+
 ```bash
 python -m unittest discover -s tests -v
 ```
 
 ## License
 
+
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## Disclaimer
 
 This is a proof-of-concept implementation. Real municipal websites may require custom scraping rules. Always review the terms of service of the target websites and ensure that scraping is allowed.
+

@@ -1,3 +1,4 @@
+
 import argparse
 import json
 import logging
@@ -69,6 +70,7 @@ except ImportError:  # pragma: no cover
 class MunicipalCrawler:
     """Simple crawler to extract municipal fee information."""
 
+
     def __init__(self, municipality_urls):
         """
         Parameters
@@ -77,6 +79,7 @@ class MunicipalCrawler:
             Mapping of municipality name -> URL to start scraping
         """
         self.municipality_urls = municipality_urls
+
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def find_pdf_links(self, soup, base_url):
@@ -119,6 +122,7 @@ class MunicipalCrawler:
         return None
 
     def scrape_municipality(self, url):
+
         text = self.fetch_page_text(url)
         soup = BeautifulSoup(text, 'html.parser')
         plain_text = soup.get_text(separator=' ').lower()
@@ -148,7 +152,9 @@ class MunicipalCrawler:
             try:
                 data = self.scrape_municipality(url)
             except Exception as exc:
+
                 self.logger.error("Failed to scrape %s: %s", municipality, exc)
+
                 data = {
                     'food_control_hourly_rate': None,
                     'food_control_billing_model': None,
@@ -157,6 +163,7 @@ class MunicipalCrawler:
             data['municipality'] = municipality
             rows.append(data)
         return pd.DataFrame(rows)
+
 
 
 def parse_args():
@@ -202,6 +209,7 @@ def main():
     crawler = MunicipalCrawler(municipalities)
     df = crawler.run()
     df.to_excel(output_path, index=False)
+
     print(df)
 
 
