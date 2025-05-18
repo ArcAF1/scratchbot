@@ -1,3 +1,4 @@
+
 import argparse
 import io
 import json
@@ -70,6 +71,7 @@ class MunicipalCrawler:
         return None
 
     def scrape_municipality(self, url):
+
         """Return parsed data for a single municipality URL."""
         text = self.fetch_page_text(url)
 
@@ -93,6 +95,7 @@ class MunicipalCrawler:
         return data
 
     def run(self):
+
         if pd is None:
             raise RuntimeError('pandas is required to create DataFrame')
 
@@ -101,7 +104,9 @@ class MunicipalCrawler:
             try:
                 data = self.scrape_municipality(url)
             except Exception as exc:
+
                 print(f"Failed to scrape {municipality}: {exc}")
+
                 data = {
                     'food_control_hourly_rate': None,
                     'food_control_billing_model': None,

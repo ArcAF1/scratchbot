@@ -11,6 +11,7 @@ web pages. The focus is on gathering data for:
 The extracted data is written to `municipal_fees.xlsx` for further
 analysis.
 
+
 ## Installation
 
 1. Create a virtual environment (optional but recommended)
@@ -22,6 +23,7 @@ pip install -r requirements.txt
 
 ## Usage
 
+
 Prepare a mapping of municipality names to URLs in `municipalities.json`
 (a sample file is provided). Then run the crawler via the command line:
 
@@ -31,9 +33,11 @@ python -m crawler.crawler --input municipalities.json --output fees.xlsx
 
 You can also launch a small GUI to select files interactively:
 
+
 ```bash
 python -m crawler.crawler --gui
 ```
+
 
 The script writes the collected data to the specified Excel file.
 
@@ -42,11 +46,13 @@ The script writes the collected data to the specified Excel file.
 Basic tests use mocked network calls so no internet connection is
 required:
 
+
 ```bash
 python -m unittest discover -s tests -v
 ```
 
 ## License
+
 
 This project is licensed under the MIT License. See `LICENSE` for
 details.
@@ -57,3 +63,4 @@ This is a proof-of-concept implementation. Real municipal websites may
 have different structures that require custom scraping logic or parsing
 rules. Always review the terms of service of the target websites and
 ensure that scraping is allowed.
+
