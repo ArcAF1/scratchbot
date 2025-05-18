@@ -2,44 +2,71 @@
 import unittest
 from unittest.mock import patch, Mock
 
-from crawler.crawler import MunicipalCrawler
+from crawler import crawler
 
-HTML_PAGE = """
+class DummyDF:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def to_excel(self, path, index=False):
+        pass
+
+    @property
+    def iloc(self):
+        class ILoc:
+            def __init__(self, rows):
+                self.rows = rows
+
+            def __getitem__(self, idx):
+                return self.rows[idx]
+
+        return ILoc(self.rows)
+
+SAMPLE_HTML = """
 <html><body>
-<p>Timtaxa f\xc3\xb6r livsmedelskontroll 1200 kronor</p>
-<p>Efterhandsdebitering</p>
-<a href='fees.pdf'>Fees</a>
+<p>Timtaxa för livsmedelskontroll är 1200 kr.</p>
+<p>Vi använder efterhandsdebitering.</p>
+<p>Timtaxa för bygglov är 900 kr.</p>
 </body></html>
 """
 
-PDF_TEXT = "Timtaxa f\xc3\xb6r bygglov 800"
+SAMPLE_PDF_TEXT = "Timtaxa för livsmedelskontroll 1300 kr. Forskottsdebitering."
+
+class DummyResp:
+    def __init__(self, text='', content=b''):
+        self.text = text
+        self.content = content
+        self.status_code = 200
+
+    def raise_for_status(self):
+        pass
 
 class CrawlerTests(unittest.TestCase):
-    @patch('crawler.crawler.MunicipalCrawler._pdf_to_text', return_value=PDF_TEXT)
-    @patch('crawler.crawler.requests.get')
-    @patch('crawler.crawler.BeautifulSoup')
-    def test_scrape_with_pdf(self, mock_bs, mock_get, mock_pdf):
-        class FakeSoup:
-            def __init__(self, text, parser):
-                self.text = text
+    @patch('crawler.crawler.pd')
+    @patch('crawler.crawler.requests')
+    def test_html_parsing(self, mock_requests, mock_pd):
+        mock_requests.get.return_value = DummyResp(text=SAMPLE_HTML)
+        mock_pd.DataFrame.side_effect = lambda rows: DummyDF(rows)
+        cr = crawler.MunicipalCrawler({'Test': 'http://example.com'})
+        df = cr.run()
+        row = df.iloc[0]
+        self.assertEqual(row['food_control_hourly_rate'], 1200.0)
+        self.assertEqual(row['food_control_billing_model'], 'efterhands')
+        self.assertEqual(row['building_permit_hourly_rate'], 900.0)
 
-            def find_all(self, tag, href=False):
-                return [{'href': 'fees.pdf'}]
-
-            def get_text(self, separator=' '):
-                return self.text
-
-        mock_bs.side_effect = FakeSoup
-        html_resp = Mock(status_code=200, text=HTML_PAGE)
-        pdf_resp = Mock(status_code=200, content=b'dummy')
-        mock_get.side_effect = [html_resp, pdf_resp]
-
-        crawler = MunicipalCrawler({'Town': 'http://example.com'})
-        df = crawler.run()
-        self.assertEqual(df.loc[0, 'food_control_hourly_rate'], 1200.0)
-        self.assertEqual(df.loc[0, 'food_control_billing_model'], 'efterhands')
-        self.assertEqual(df.loc[0, 'building_permit_hourly_rate'], 800.0)
+    @patch('crawler.crawler.pd')
+    @patch('crawler.crawler.PdfReader')
+    @patch('crawler.crawler.requests')
+    def test_pdf_parsing(self, mock_requests, mock_reader, mock_pd):
+        mock_requests.get.return_value = DummyResp(content=b'pdfbytes')
+        mock_reader.return_value.pages = [Mock(extract_text=lambda: SAMPLE_PDF_TEXT)]
+        mock_pd.DataFrame.side_effect = lambda rows: DummyDF(rows)
+        cr = crawler.MunicipalCrawler({'PDFTest': 'http://example.com/test.pdf'})
+        df = cr.run()
+        row = df.iloc[0]
+        self.assertEqual(row['food_control_hourly_rate'], 1300.0)
+        self.assertEqual(row['food_control_billing_model'], 'forskott')
+        self.assertIsNone(row['building_permit_hourly_rate'])
 
 if __name__ == '__main__':
     unittest.main()
-

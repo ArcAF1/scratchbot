@@ -1,109 +1,58 @@
 
 import argparse
+import io
 import json
-import logging
 import os
 import re
-import io
-import tkinter as tk
-from tkinter import filedialog
 
 try:
     import requests
-except ImportError:  # pragma: no cover - fallback in restricted envs
-    class _RequestsFallback:
-        def __init__(self):
-            from urllib.parse import urljoin
-            self.compat = type('compat', (), {'urljoin': urljoin})
+except Exception:  # pragma: no cover - fallback for test env
+    requests = None
 
-        def get(self, *a, **k):
-            raise RuntimeError("requests not available")
-
-    requests = _RequestsFallback()
 try:
     from bs4 import BeautifulSoup
-except ImportError:  # pragma: no cover
-    class _SimpleSoup:
-        def __init__(self, text, parser):
-            self.text = text
-
-        def find_all(self, tag, href=False):
-            return []
-
-        def get_text(self, separator=' '):
-            return self.text
-
-    BeautifulSoup = _SimpleSoup
-try:
-    from PyPDF2 import PdfReader
-except ImportError:  # pragma: no cover
-    class PdfReader:
-        def __init__(self, *a, **k):
-            self.pages = []
+except Exception:  # pragma: no cover - fallback for test env
+    BeautifulSoup = None
 
 try:
     import pandas as pd
-except ImportError:  # pragma: no cover
-    class _SimpleDF(list):
-        def __init__(self, rows):
-            super().__init__(rows)
+except Exception:  # pragma: no cover - fallback for test env
+    pd = None
 
-        def to_excel(self, path, index=False):
-            with open(path, 'w', encoding='utf-8') as fh:
-                for row in self:
-                    fh.write(str(row) + '\n')
+try:
+    from PyPDF2 import PdfReader
+except Exception:  # pragma: no cover - fallback for test env
+    PdfReader = None
 
-        @property
-        def loc(self):
-            class _Loc:
-                def __init__(self, data):
-                    self.data = data
-
-                def __getitem__(self, key):
-                    row_idx, col = key
-                    return list(self.data[row_idx].values())[list(self.data[row_idx].keys()).index(col)]
-
-            return _Loc(self)
-
-    pd = type('pd', (), {'DataFrame': _SimpleDF})
+try:
+    import tkinter as tk
+    from tkinter import filedialog, messagebox
+except Exception:  # pragma: no cover - fallback for test env
+    tk = None
 
 class MunicipalCrawler:
-    """Simple crawler to extract municipal fee information."""
-
+    """Simple crawler to extract municipal fee information"""
 
     def __init__(self, municipality_urls):
-        """
-        Parameters
-        ----------
-        municipality_urls : dict
-            Mapping of municipality name -> URL to start scraping
-        """
+        """Initialize with a mapping of municipality names to URLs."""
         self.municipality_urls = municipality_urls
 
-        self.logger = logging.getLogger(self.__class__.__name__)
-
-    def find_pdf_links(self, soup, base_url):
-        """Return a list of absolute URLs to PDF files found in the page."""
-        pdf_links = []
-        for a in soup.find_all('a', href=True):
-            href = a['href']
-            if href.lower().endswith('.pdf'):
-                pdf_links.append(requests.compat.urljoin(base_url, href))
-        return pdf_links
-
     def fetch_page_text(self, url):
-        """Return text from a URL that may be HTML or PDF."""
+        """Fetch text content from a URL. Handles both HTML and PDF."""
+        if requests is None:
+            raise RuntimeError("requests library is required to fetch URLs")
+
         resp = requests.get(url, timeout=10)
         resp.raise_for_status()
-        if url.lower().endswith('.pdf'):
-            return self._pdf_to_text(resp.content)
-        return resp.text
 
-    def _pdf_to_text(self, data):
-        """Extract text from PDF bytes."""
-        reader = PdfReader(io.BytesIO(data))
-        pages = [page.extract_text() or '' for page in reader.pages]
-        return '\n'.join(pages)
+        if url.lower().endswith('.pdf'):
+            if PdfReader is None:
+                raise RuntimeError("PyPDF2 is required for PDF parsing")
+            reader = PdfReader(io.BytesIO(resp.content))
+            pages = [p.extract_text() or '' for p in reader.pages]
+            return '\n'.join(pages)
+        return resp.text
 
     def parse_hourly_rate(self, text, pattern):
         match = re.search(pattern, text, re.IGNORECASE)
@@ -123,15 +72,14 @@ class MunicipalCrawler:
 
     def scrape_municipality(self, url):
 
+        """Return parsed data for a single municipality URL."""
         text = self.fetch_page_text(url)
-        soup = BeautifulSoup(text, 'html.parser')
-        plain_text = soup.get_text(separator=' ').lower()
 
-        for pdf_url in self.find_pdf_links(soup, url):
-            try:
-                plain_text += '\n' + self.fetch_page_text(pdf_url).lower()
-            except Exception as exc:  # pragma: no cover - network errors
-                self.logger.warning("Failed to fetch PDF %s: %s", pdf_url, exc)
+        if BeautifulSoup is not None:
+            soup = BeautifulSoup(text, 'html.parser')
+            plain_text = soup.get_text(separator=' ').lower()
+        else:
+            plain_text = text.lower()
 
         data = {
             'food_control_hourly_rate': self.parse_hourly_rate(
@@ -147,13 +95,17 @@ class MunicipalCrawler:
         return data
 
     def run(self):
+
+        if pd is None:
+            raise RuntimeError('pandas is required to create DataFrame')
+
         rows = []
         for municipality, url in self.municipality_urls.items():
             try:
                 data = self.scrape_municipality(url)
             except Exception as exc:
 
-                self.logger.error("Failed to scrape %s: %s", municipality, exc)
+                print(f"Failed to scrape {municipality}: {exc}")
 
                 data = {
                     'food_control_hourly_rate': None,
@@ -165,51 +117,84 @@ class MunicipalCrawler:
         return pd.DataFrame(rows)
 
 
+def load_municipalities(path):
+    """Load municipality mapping from a JSON or CSV file."""
+    if not os.path.exists(path):
+        raise FileNotFoundError(path)
+    if path.lower().endswith('.json'):
+        with open(path, 'r', encoding='utf-8') as fh:
+            return json.load(fh)
+    mapping = {}
+    with open(path, 'r', encoding='utf-8') as fh:
+        for line in fh:
+            parts = [p.strip() for p in line.split(',')]
+            if len(parts) >= 2:
+                mapping[parts[0]] = parts[1]
+    return mapping
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="Municipal fee crawler")
-    parser.add_argument("--input", default="data/municipalities.json",
-                        help="JSON file mapping municipality name to URL")
-    parser.add_argument("--output", default="municipal_fees.xlsx",
-                        help="Path to output Excel file")
-    parser.add_argument("--gui", action="store_true",
-                        help="Open a file dialog to select input/output")
-    return parser.parse_args()
 
+def run_gui(args):
+    if tk is None:
+        raise RuntimeError('tkinter is required for GUI')
 
-def gui_select_files():
     root = tk.Tk()
-    root.withdraw()
-    input_file = filedialog.askopenfilename(title="Municipalities JSON",
-                                            filetypes=[("JSON", "*.json")])
-    output_file = filedialog.asksaveasfilename(title="Output Excel",
-                                               defaultextension=".xlsx",
-                                               filetypes=[("Excel", "*.xlsx")])
-    root.destroy()
-    return input_file, output_file
+    root.title('Municipal Crawler')
+
+    input_var = tk.StringVar(value=args.input)
+    output_var = tk.StringVar(value=args.output)
+
+    def browse_input():
+        filename = filedialog.askopenfilename()
+        if filename:
+            input_var.set(filename)
+
+    def browse_output():
+        filename = filedialog.asksaveasfilename(defaultextension='.xlsx')
+        if filename:
+            output_var.set(filename)
+
+    def run_crawl():
+        try:
+            municipalities = load_municipalities(input_var.get())
+            crawler = MunicipalCrawler(municipalities)
+            df = crawler.run()
+            df.to_excel(output_var.get(), index=False)
+            messagebox.showinfo('Done', 'Crawling finished')
+        except Exception as exc:
+            messagebox.showerror('Error', str(exc))
+
+    tk.Label(root, text='Municipality file:').grid(row=0, column=0, sticky='w')
+    tk.Entry(root, textvariable=input_var, width=40).grid(row=0, column=1)
+    tk.Button(root, text='Browse', command=browse_input).grid(row=0, column=2)
+
+    tk.Label(root, text='Output Excel:').grid(row=1, column=0, sticky='w')
+    tk.Entry(root, textvariable=output_var, width=40).grid(row=1, column=1)
+    tk.Button(root, text='Browse', command=browse_output).grid(row=1, column=2)
+
+    tk.Button(root, text='Run', command=run_crawl).grid(row=2, column=1)
+    root.mainloop()
 
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    parser = argparse.ArgumentParser(description="Municipal fee crawler")
+    parser.add_argument('--input', default='municipalities.json',
+                        help='JSON or CSV file with municipality URL mapping')
+    parser.add_argument('--output', default='municipal_fees.xlsx',
+                        help='Excel file to write results to')
+    parser.add_argument('--gui', action='store_true',
+                        help='Launch simple Tkinter GUI')
+    args = parser.parse_args()
 
-    args = parse_args()
-
-    input_path = args.input
-    output_path = args.output
     if args.gui:
-        sel_in, sel_out = gui_select_files()
-        if sel_in:
-            input_path = sel_in
-        if sel_out:
-            output_path = sel_out
+        run_gui(args)
+        return
 
-    with open(input_path, "r", encoding="utf-8") as fh:
-        municipalities = json.load(fh)
-
+    municipalities = load_municipalities(args.input)
     crawler = MunicipalCrawler(municipalities)
     df = crawler.run()
-    df.to_excel(output_path, index=False)
-
+    if pd is None:
+        raise RuntimeError('pandas is required to save Excel output')
+    df.to_excel(args.output, index=False)
     print(df)
 
 

@@ -1,7 +1,15 @@
 # Municipal Fee Crawler
 
+This repository contains a simple Python-based crawler that extracts
+hourly rate information for municipal services from publicly available
+web pages. The focus is on gathering data for:
 
-This repository contains a Python-based crawler that extracts hourly rate information and billing models for municipal services. The crawler can read a list of municipal URLs, crawl HTML or PDF documents, and export the results to an Excel file.
+- Timtaxan för livsmedelskontroll
+- Debiteringsmodell för livsmedelskontroll
+- Timtaxan för bygglov
+
+The extracted data is written to `municipal_fees.xlsx` for further
+analysis.
 
 
 ## Installation
@@ -15,24 +23,28 @@ pip install -r requirements.txt
 
 ## Usage
 
-A sample mapping of municipalities to URLs is provided in `data/municipalities.json`.
-You can run the crawler from the command line:
+
+Prepare a mapping of municipality names to URLs in `municipalities.json`
+(a sample file is provided). Then run the crawler via the command line:
 
 ```bash
-python -m crawler.crawler --input data/municipalities.json --output municipal_fees.xlsx
+python -m crawler.crawler --input municipalities.json --output fees.xlsx
 ```
 
-Add `--gui` to open a small window that lets you pick the input and output files interactively:
+You can also launch a small GUI to select files interactively:
+
 
 ```bash
 python -m crawler.crawler --gui
 ```
 
-The resulting Excel file contains the scraped data for each municipality.
 
-## Running Tests
+The script writes the collected data to the specified Excel file.
 
-The project uses the built-in `unittest` framework. Execute the test suite with:
+## Tests
+
+Basic tests use mocked network calls so no internet connection is
+required:
 
 
 ```bash
@@ -42,9 +54,13 @@ python -m unittest discover -s tests -v
 ## License
 
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+This project is licensed under the MIT License. See `LICENSE` for
+details.
 
 ## Disclaimer
 
-This is a proof-of-concept implementation. Real municipal websites may require custom scraping rules. Always review the terms of service of the target websites and ensure that scraping is allowed.
+This is a proof-of-concept implementation. Real municipal websites may
+have different structures that require custom scraping logic or parsing
+rules. Always review the terms of service of the target websites and
+ensure that scraping is allowed.
 
