@@ -1,46 +1,45 @@
-import types
+
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, Mock
 
 from crawler.crawler import MunicipalCrawler
 
+HTML_PAGE = """
+<html><body>
+<p>Timtaxa f\xc3\xb6r livsmedelskontroll 1200 kronor</p>
+<p>Efterhandsdebitering</p>
+<a href='fees.pdf'>Fees</a>
+</body></html>
+"""
 
-class ParseTests(unittest.TestCase):
-    def setUp(self):
-        self.crawler = MunicipalCrawler({})
+PDF_TEXT = "Timtaxa f\xc3\xb6r bygglov 800"
 
-    def test_parse_hourly_rate(self):
-        text = "Timtaxa f\u00f6r livsmedelskontroll \u00e4r 1200 kronor".lower()
-        rate = self.crawler.parse_hourly_rate(text, r"timtaxa.*?livsmedelskontroll.*?(\d+[\,\.]?\d*)")
-        self.assertEqual(rate, 1200.0)
+class CrawlerTests(unittest.TestCase):
+    @patch('crawler.crawler.MunicipalCrawler._pdf_to_text', return_value=PDF_TEXT)
+    @patch('crawler.crawler.requests.get')
+    @patch('crawler.crawler.BeautifulSoup')
+    def test_scrape_with_pdf(self, mock_bs, mock_get, mock_pdf):
+        class FakeSoup:
+            def __init__(self, text, parser):
+                self.text = text
 
-    def test_parse_billing_model(self):
-        text = "Vi till\u00e4mpar efterhandsdebitering.".lower()
-        model = self.crawler.parse_billing_model(text)
-        self.assertEqual(model, "efterhands")
+            def find_all(self, tag, href=False):
+                return [{'href': 'fees.pdf'}]
 
+            def get_text(self, separator=' '):
+                return self.text
 
-class RunTests(unittest.TestCase):
-    def test_run_with_patched_dependencies(self):
-        html = "<html>Timtaxa f\u00f6r livsmedelskontroll 1000</html>"
-        mock_df = MagicMock(name="DataFrame")
+        mock_bs.side_effect = FakeSoup
+        html_resp = Mock(status_code=200, text=HTML_PAGE)
+        pdf_resp = Mock(status_code=200, content=b'dummy')
+        mock_get.side_effect = [html_resp, pdf_resp]
 
-        with patch('crawler.crawler.requests') as mock_requests, \
-             patch('crawler.crawler.BeautifulSoup') as mock_bs, \
-             patch('crawler.crawler.pd') as mock_pd:
+        crawler = MunicipalCrawler({'Town': 'http://example.com'})
+        df = crawler.run()
+        self.assertEqual(df.loc[0, 'food_control_hourly_rate'], 1200.0)
+        self.assertEqual(df.loc[0, 'food_control_billing_model'], 'efterhands')
+        self.assertEqual(df.loc[0, 'building_permit_hourly_rate'], 800.0)
 
-            mock_resp = MagicMock()
-            mock_resp.text = html
-            mock_resp.raise_for_status.return_value = None
-            mock_requests.get.return_value = mock_resp
-
-            mock_soup = MagicMock()
-            mock_soup.get_text.return_value = html
-            mock_bs.return_value = mock_soup
-
-            mock_pd.DataFrame.return_value = mock_df
-
-            crawler = MunicipalCrawler({'Town': 'http://example.com'})
-            result = crawler.run()
-            self.assertIs(result, mock_df)
+if __name__ == '__main__':
+    unittest.main()
 
