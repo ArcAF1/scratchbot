@@ -177,8 +177,11 @@ def run_gui(args):
 
 def main():
     parser = argparse.ArgumentParser(description="Municipal fee crawler")
-    parser.add_argument('--input', default='municipalities.json',
-                        help='JSON or CSV file with municipality URL mapping')
+    parser.add_argument(
+        '--input',
+        default='municipalities.csv',
+        help='JSON or CSV file with municipality URL mapping'
+    )
     parser.add_argument('--output', default='municipal_fees.xlsx',
                         help='Excel file to write results to')
     parser.add_argument('--gui', action='store_true',
