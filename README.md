@@ -24,27 +24,28 @@ pip install -r requirements.txt
 ## Usage
 
 
-Prepare a mapping of municipality names to URLs in `municipalities.csv`
-(a sample file is provided). Then run the crawler via the command line:
+By default the crawler reads municipality URLs from `municipalities.csv`
+and writes the results to `municipal_fees.xlsx`. You can run the crawler
+directly:
 
 ```bash
-python -m crawler.crawler --input municipalities.csv --output fees.xlsx
+python run_crawler.py
 ```
 
-You can also launch a small GUI to select files interactively:
-
+You can also specify files explicitly:
 
 ```bash
-python -m crawler.crawler --gui
+python -m crawler.crawler --input municipalities.csv --output out.xlsx
 ```
 
+Add `--gui` to choose the files via Tkinter dialogs.
 
-The script writes the collected data to the specified Excel file.
+The Excel file will contain one row per municipality with the parsed
+information.
 
-## Tests
+## Testing
 
-Basic tests use mocked network calls and PDF parsing so no internet
-connection or external dependencies are required:
+Run the unit tests with:
 
 
 ```bash
@@ -54,8 +55,9 @@ python -m unittest discover -s tests -v
 ## License
 
 
-This project is licensed under the MIT License. See `LICENSE` for
-details.
+This project is released under the terms of the MIT License. See the
+`LICENSE` file for details.
+
 
 ## Disclaimer
 

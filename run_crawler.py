@@ -1,4 +1,3 @@
-"""Convenience script to run the municipal crawler with default paths."""
 
 from crawler.crawler import main
 
