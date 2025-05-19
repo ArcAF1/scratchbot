@@ -102,5 +102,23 @@ class CrawlerTests(unittest.TestCase):
         self.assertEqual(row_pdf['food_control_billing_model'], 'forskott')
         self.assertIsNone(row_pdf['building_permit_hourly_rate'])
 
+    @patch('crawler.crawler.pd')
+    @patch('crawler.crawler.PdfReader')
+    @patch('crawler.crawler.requests')
+    def test_pdf_link_in_html(self, mock_requests, mock_reader, mock_pd):
+        html_with_link = '<html><body><a href="fees.pdf">Fees</a></body></html>'
+        mock_requests.get.side_effect = [
+            DummyResp(text=html_with_link),
+            DummyResp(content=b'pdfbytes')
+        ]
+        mock_reader.return_value.pages = [Mock(extract_text=lambda: SAMPLE_PDF_TEXT)]
+        mock_pd.DataFrame.side_effect = lambda rows: DummyDF(rows)
+        cr = crawler.MunicipalCrawler({'LinkPDF': 'http://example.com'})
+        df = cr.run()
+        row = df.iloc[0]
+        self.assertEqual(row['food_control_hourly_rate'], 1300.0)
+        self.assertEqual(row['food_control_billing_model'], 'forskott')
+        self.assertIsNone(row['building_permit_hourly_rate'])
+
 if __name__ == '__main__':
     unittest.main()

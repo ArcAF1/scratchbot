@@ -75,11 +75,29 @@ class MunicipalCrawler:
         """Return parsed data for a single municipality URL."""
         text = self.fetch_page_text(url)
 
-        if BeautifulSoup is not None:
-            soup = BeautifulSoup(text, 'html.parser')
-            plain_text = soup.get_text(separator=' ').lower()
-        else:
-            plain_text = text.lower()
+        plain_text = text.lower()
+
+        if not url.lower().endswith('.pdf'):
+            pdf_url = None
+            if BeautifulSoup is not None:
+                soup = BeautifulSoup(text, 'html.parser')
+                tag = soup.find('a', href=re.compile(r'\.pdf$', re.IGNORECASE))
+                if tag and tag.get('href'):
+                    pdf_url = tag['href']
+                    if requests is not None:
+                        pdf_url = requests.compat.urljoin(url, pdf_url)
+                    text = self.fetch_page_text(pdf_url)
+                    plain_text = text.lower()
+                else:
+                    plain_text = soup.get_text(separator=' ').lower()
+            else:
+                m = re.search(r'href=[\"\']([^\"\']+\.pdf)[\"\']', text, re.IGNORECASE)
+                if m:
+                    pdf_url = m.group(1)
+                    if requests is not None:
+                        pdf_url = requests.compat.urljoin(url, pdf_url)
+                    text = self.fetch_page_text(pdf_url)
+                    plain_text = text.lower()
 
         data = {
             'food_control_hourly_rate': self.parse_hourly_rate(
