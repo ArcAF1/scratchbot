@@ -1,3 +1,4 @@
+
 import unittest
 from unittest.mock import patch
 
@@ -36,6 +37,7 @@ class TestMunicipalCrawler(unittest.TestCase):
         self.assertEqual(len(df), 1)
         self.assertEqual(df.loc[0, 'municipality'], 'Town')
         self.assertEqual(df.loc[0, 'food_control_hourly_rate'], 1000.0)
+
 
 if __name__ == '__main__':
     unittest.main()

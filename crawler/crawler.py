@@ -1,3 +1,4 @@
+
 import re
 import csv
 import json
@@ -17,10 +18,12 @@ except Exception:
     tk = None
     filedialog = None
 
+
 class MunicipalCrawler:
     """Simple crawler to extract municipal fee information"""
 
     def __init__(self, municipality_urls):
+
         """
         Parameters
         ----------
@@ -56,6 +59,7 @@ class MunicipalCrawler:
             text += page.extract_text() or ""
         return text
 
+
     def parse_hourly_rate(self, text, pattern):
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
@@ -73,12 +77,14 @@ class MunicipalCrawler:
         return None
 
     def scrape_municipality(self, url):
+
         if url.lower().endswith('.pdf'):
             plain_text = self.fetch_pdf_text(url).lower()
         else:
             text = self.fetch_page_text(url)
             soup = BeautifulSoup(text, 'html.parser')
             plain_text = soup.get_text(separator=' ').lower()
+
 
         data = {
             'food_control_hourly_rate': self.parse_hourly_rate(
@@ -94,12 +100,16 @@ class MunicipalCrawler:
         return data
 
     def run(self):
+
+
         rows = []
         for municipality, url in self.municipality_urls.items():
             try:
                 data = self.scrape_municipality(url)
             except Exception as exc:
+
                 print(f"Failed to scrape {municipality}: {exc}")
+
                 data = {
                     'food_control_hourly_rate': None,
                     'food_control_billing_model': None,
@@ -108,6 +118,7 @@ class MunicipalCrawler:
             data['municipality'] = municipality
             rows.append(data)
         return pd.DataFrame(rows)
+
 
 
 def main(argv=None):
@@ -126,6 +137,7 @@ def main(argv=None):
     municipalities = MunicipalCrawler.load_municipalities(args.input)
     crawler = MunicipalCrawler(municipalities)
     df = crawler.run()
+
     df.to_excel(args.output, index=False)
     print(df)
 
