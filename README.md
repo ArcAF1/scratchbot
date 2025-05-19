@@ -24,11 +24,11 @@ pip install -r requirements.txt
 ## Usage
 
 
-Prepare a mapping of municipality names to URLs in `municipalities.json`
+Prepare a mapping of municipality names to URLs in `municipalities.csv`
 (a sample file is provided). Then run the crawler via the command line:
 
 ```bash
-python -m crawler.crawler --input municipalities.json --output fees.xlsx
+python -m crawler.crawler --input municipalities.csv --output fees.xlsx
 ```
 
 You can also launch a small GUI to select files interactively:
