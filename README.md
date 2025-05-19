@@ -43,8 +43,8 @@ The script writes the collected data to the specified Excel file.
 
 ## Tests
 
-Basic tests use mocked network calls so no internet connection is
-required:
+Basic tests use mocked network calls and PDF parsing so no internet
+connection or external dependencies are required:
 
 
 ```bash
